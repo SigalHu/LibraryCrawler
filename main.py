@@ -5,6 +5,7 @@ import time
 from reportlab.pdfgen.canvas import Canvas
 from PIL import Image
 from tqdm import tqdm
+from bs4 import BeautifulSoup
 
 
 class LibraryCrawler:
@@ -76,6 +77,17 @@ class LibraryCrawler:
 			self.__set_book_items('正文页', int(results[0][0]), int(results[0][1]))
 		else:
 			raise Exception('获取书籍栏目失败！')
+
+	def __get_book_url(self,html_page):
+		soup = BeautifulSoup(html_page, 'html.parser')
+		results = soup.select('.booklist')
+		for res in results:
+			book_info = re.findall(re.compile(r'<dt>(.*?):</dt>'),res)
+			if len(book_info) == 1:
+				book_info = book_info[0]
+			else:
+				pass
+
 
 	def download_jpg(self, url, save_path):
 		self.__init_para(url)
