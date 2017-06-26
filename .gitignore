@@ -5,7 +5,7 @@
 #######################
 
 files
-test*.py
+mytest*.py
 .idea
 *.zip
 
