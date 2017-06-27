@@ -301,21 +301,34 @@ if __name__ == '__main__':
 		print('保存路径：%s 不存在！' % save_path)
 		save_path = input('请输入保存路径：')
 
+	user_mod = input('''请选择下载模式：
+1.根据书籍页面链接下载书籍
+2.根据关键词批量下载所有搜索到的书籍
+输入相应数字进行选择：''')
+
+	lc = LibraryCrawler()
 	while True:
-		key_word = input('请输入搜索关键词：')
-
-		lc = LibraryCrawler()
-		book_list = lc.search_books(key_word)
-		book_num = len(book_list)
-		print('共搜索到%d个结果...' % book_num)
-		if book_num > 0:
-			key_dir_name = re.sub(re.compile(r'[\\/:*?"<>|]+'), ' ', key_word).strip(' ')
-			save_path = os.path.join(save_path, key_dir_name)
-
-		for book_item, ii in zip(book_list, range(book_num)):
-			print('\n准备下载第 %d/%d 本书籍...' % (ii + 1, book_num))
+		if user_mod == '1':
+			book_url = input('请输入书籍页面链接：')
 			try:
-				lc.download_pdf(book_item['url'], save_path)
+				lc.download_pdf(book_url, save_path)
 			except Exception as ex:
 				print(ex)
-		print('\n所有书籍下载完毕！\n')
+		elif user_mod == '2':
+			key_word = input('请输入搜索关键词：')
+			book_list = lc.search_books(key_word)
+			book_num = len(book_list)
+			print('共搜索到%d个结果...' % book_num)
+			if book_num > 0:
+				key_dir_name = re.sub(re.compile(r'[\\/:*?"<>|]+'), ' ', key_word).strip(' ')
+				save_path = os.path.join(save_path, key_dir_name)
+
+			for book_item, ii in zip(book_list, range(book_num)):
+				print('\n准备下载第 %d/%d 本书籍...' % (ii + 1, book_num))
+				try:
+					lc.download_pdf(book_item['url'], save_path)
+				except Exception as ex:
+					print(ex)
+			print('\n所有书籍下载完毕！\n')
+		else:
+			user_mod = input('输入相应数字进行选择(1/2)：')
