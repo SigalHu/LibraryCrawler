@@ -19,6 +19,7 @@ class LibraryCrawler:
 	                '前言页': ['fow%03d.jpg'],
 	                '目录页': ['!%05d.jpg'],
 	                '正文页': ['%06d.jpg']}
+	__headers = {'Cookie': ''}
 
 	@property
 	def book_name(self):
@@ -28,10 +29,7 @@ class LibraryCrawler:
 	def book_items(self):
 		res = {}
 		for key, value in zip(self.__book_items.keys(), self.__book_items.values()):
-			if len(value) == 3:
-				res.setdefault(key, value[1:])
-			else:
-				res.setdefault(key)
+			res[key] = value[1:] if len(value) == 3 else None
 		return res
 
 	def __set_book_items(self, key, start_page, end_page):
@@ -120,30 +118,85 @@ class LibraryCrawler:
 				ssid_para['author'] = author[0]
 
 		# 获取ssid
-		resp = urllib.request.urlopen(r'http://202.119.70.51:8088/servlet/isExitJson?' + urllib.parse.urlencode(ssid_para))
+		resp = urllib.request.urlopen(
+			r'http://202.119.70.51:8088/servlet/isExitJson?' + urllib.parse.urlencode(ssid_para))
 		ssid_data = re.findall(re.compile(r'"ssid":"(\d+)"'), resp.read().decode('utf-8'))
 		if len(ssid_data) == 0:
-			raise Exception('该书籍不存在电子版！')
+			raise Exception('《%s》不存在电子版！' % ssid_para['bookName'])
 
 		# 获取book_cookie
 		cookies = http.cookiejar.CookieJar()
 		handler = urllib.request.HTTPCookieProcessor(cookies)
 		opener = urllib.request.build_opener(handler)
-		resp = opener.open(r'http://202.119.70.51:8088/catchpage/URL.jsp?BID=' + ssid_data[0])
-		book_cookie = ''
+		resq = urllib.request.Request(r'http://202.119.70.51:8088/catchpage/URL.jsp?BID=' + ssid_data[0],
+		                              headers=self.__headers)
+		resp = opener.open(resq)
 		for cookie in cookies:
-			book_cookie += '%s=%s;' % (cookie.name, cookie.value)
+			self.__headers['Cookie'] = '%s=%s;' % (cookie.name, cookie.value)
+			break
 
 		# 获取book_url
 		resq = urllib.request.Request(r'http://202.119.70.51:8088/markbook/guajie.jsp?BID=' + ssid_data[0],
-		                              headers={'Cookie': book_cookie})
+		                              headers=self.__headers)
 		resp = opener.open(resq)
 		resq = urllib.request.Request(r'http://202.119.70.51:8088/getbookread?BID=' + ssid_data[
 			0] + '&ReadMode=0&jpgread=0&displaystyle=0&NetUser=&page=',
-		                              headers={'Cookie': book_cookie})
+		                              headers=self.__headers)
 		resp = opener.open(resq)
 		book_url = r'http://202.119.70.51:8088' + urllib.parse.unquote(resp.read().decode('utf-8'))
 		return book_url
+
+	def __get_book_list(self, html_page):
+		soup = BeautifulSoup(html_page, 'html.parser')
+		book_info_list = soup.find_all('li', class_='book_list_info')
+		book_list = []
+		for book_item in book_info_list:
+			book_info = {'题名': None,
+			             'url': r'http://202.119.70.22:888/opac/item.php?marc_no=',
+			             '个人责任者': None,
+			             '出版发行项': None}
+			book_item = str(book_item)
+			res = re.findall(re.compile(r'<a href="item\.php\?marc_no=(.*?)">\d+\.(.*?)</a>'), book_item)
+			if len(res) and len(res[0]) == 2:
+				book_info['url'] += res[0][0]
+				book_info['题名'] = res[0][1]
+				res = re.findall(re.compile(r'</span>\s*(.*?)\s*<br>[\n\t\s]*(.*?)[,\s]*(\d*\.?\d*)\s*<br/>'),
+				                 book_item)
+				if len(res) and len(res[0]) == 3:
+					book_info['个人责任者'] = res[0][0]
+					book_info['出版发行项'] = '%s %s' % (res[0][1], res[0][2])
+				book_list.append(book_info)
+		return book_list
+
+	def search_books(self, key_word):
+		search_para = {'strSearchType': 'title',
+		               'match_flag': 'forward',
+		               'historyCount': '0',
+		               'strText': key_word,
+		               'doctype': 'ALL',
+		               'with_ebook': 'on',
+		               'displaypg': '10000',
+		               'showmode': 'list',
+		               'sort': 'CATA_DATE',
+		               'orderby': 'desc',
+		               'dept': 'ALL',
+		               'page': '1'}
+		resp = urllib.request.urlopen(
+			r'http://202.119.70.22:888/opac/openlink.php?' + urllib.parse.urlencode(search_para))
+		html_page = resp.read().decode('utf-8')
+		book_list = self.__get_book_list(html_page)
+
+		page_list = re.findall(re.compile(r'<option value=\'\d+\'>(\d+)</option>'), html_page)
+		if len(page_list):
+			page_list = page_list[:int(len(page_list) / 2)]
+
+		for page_num in page_list:
+			search_para['page'] = page_num
+			resp = urllib.request.urlopen(
+				r'http://202.119.70.22:888/opac/openlink.php?' + urllib.parse.urlencode(search_para))
+			html_page = resp.read().decode('utf-8')
+			book_list += self.__get_book_list(html_page)
+		return book_list
 
 	def download_jpg(self, book_info_url, save_path):
 		book_url = self.__get_book_url(book_info_url)
@@ -239,7 +292,30 @@ class LibraryCrawler:
 
 
 if __name__ == '__main__':
-	save_path = 'files'
-	url = r'http://202.119.70.22:888/opac/item.php?marc_no=0000739835'
-	lc = LibraryCrawler()
-	lc.download_pdf(url,save_path)
+	save_path = os.path.abspath('files')
+	print('默认保存路径：%s' % save_path)
+	user = input('是否修改(y/[n]):')
+	if user == 'y' or user == 'Y':
+		save_path = input('请输入保存路径：')
+	while not os.path.isdir(save_path):
+		print('保存路径：%s 不存在！' % save_path)
+		save_path = input('请输入保存路径：')
+
+	while True:
+		key_word = input('请输入搜索关键词：')
+
+		lc = LibraryCrawler()
+		book_list = lc.search_books(key_word)
+		book_num = len(book_list)
+		print('共搜索到%d个结果...' % book_num)
+		if book_num > 0:
+			key_dir_name = re.sub(re.compile(r'[\\/:*?"<>|]+'), ' ', key_word).strip(' ')
+			save_path = os.path.join(save_path, key_dir_name)
+
+		for book_item, ii in zip(book_list, range(book_num)):
+			print('\n准备下载第 %d/%d 本书籍...' % (ii + 1, book_num))
+			try:
+				lc.download_pdf(book_item['url'], save_path)
+			except Exception as ex:
+				print(ex)
+		print('\n所有书籍下载完毕！\n')
