@@ -439,6 +439,7 @@ def __main():
 2.根据书籍页面链接下载书籍以及电子资源
 3.根据关键词批量下载所有搜索到的书籍
 4.根据关键词批量下载所有搜索到的书籍以及电子资源
+5.根据电子资源页面链接下载电子资源
 输入相应数字进行选择：''')
 
 	lc = LibraryCrawler()
@@ -465,6 +466,12 @@ def __main():
 				except Exception as ex:
 					print(ex)
 			print('\n所有书籍下载完毕！\n')
+		elif user_mod == '5':
+			resource_url = input('\n请输入电子资源页面链接：')
+			try:
+				lc.download_resource(resource_url, save_path)
+			except Exception as ex:
+				print(ex)
 		else:
 			user_mod = input('输入相应数字进行选择(1/2)：')
 
