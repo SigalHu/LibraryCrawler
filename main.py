@@ -24,16 +24,29 @@ class LibraryCrawler:
 
 	@property
 	def book_name(self):
+		'''
+		返回当前下载书名
+		:return: 当前下载书名
+		'''
 		return self.__book_name
 
 	@property
 	def book_items(self):
+		'''
+		返回当前下载书籍相关信息
+		:return: 当前下载书籍相关信息
+		'''
 		res = {}
 		for key, value in zip(self.__book_items.keys(), self.__book_items.values()):
 			res[key] = value[1:] if len(value) == 3 else None
 		return res
 
 	def __generate_ruid(self, ruidIndex=0):
+		'''
+		产生一个时间戳
+		:param ruidIndex: 时间戳索引
+		:return: (时间戳, 下一个时间戳索引)
+		'''
 		if ruidIndex > 100000:
 			ruidIndex %= 100000
 		now_time = datetime.datetime.now()
@@ -43,6 +56,13 @@ class LibraryCrawler:
 		return time_str, ruidIndex
 
 	def __set_book_items(self, key, start_page, end_page):
+		'''
+		设置当前下载书籍页数信息
+		:param key:当前下载书籍相关页名
+		:param start_page:相关页名起始页
+		:param end_page:相关页名结束页
+		:return:无
+		'''
 		if key not in self.__book_items.keys():
 			raise Exception('参数初始化失败！')
 		length = len(self.__book_items[key])
@@ -58,6 +78,11 @@ class LibraryCrawler:
 			self.__book_items[key].append(end_page)
 
 	def __init_para(self, book_url):
+		'''
+		通过南航图书馆书籍在线阅读页面信息初始化类成员变量
+		:param book_url: 南航图书馆书籍在线阅读页面链接
+		:return:无
+		'''
 		resp = urllib.request.urlopen(book_url)
 		html_page = resp.read().decode('utf-8')
 
@@ -89,6 +114,11 @@ class LibraryCrawler:
 			raise Exception('获取书籍栏目失败！')
 
 	def __get_book_url(self, html_page):
+		'''
+		通过南航图书馆书籍信息页面获取在线阅读页面链接
+		:param html_page:南航图书馆书籍信息页面
+		:return:在线阅读页面链接
+		'''
 		ssid_para = {'callback': 'SigalHu',
 		             'isbn': '',
 		             'bookName': '',
@@ -155,6 +185,11 @@ class LibraryCrawler:
 		return book_url
 
 	def __get_book_list(self, html_page):
+		'''
+		通过南航图书馆书籍搜索结果页面获取搜索结果列表
+		:param html_page: 南航图书馆书籍搜索结果页面
+		:return: 搜索结果列表
+		'''
 		soup = BeautifulSoup(html_page, 'html.parser')
 		book_info_list = soup.find_all('li', class_='book_list_info')
 		book_list = []
@@ -177,6 +212,11 @@ class LibraryCrawler:
 		return book_list
 
 	def __get_resource_list_from_url(self, resource_info_url):
+		'''
+		通过南航非书资源管理平台电子资源信息页面链接获取电子资源列表
+		:param resource_info_url: 南航非书资源管理平台电子资源信息页面链接
+		:return: 电子资源列表
+		'''
 		# 获取资源信息页面
 		resource_list = []
 		resp = urllib.request.urlopen(resource_info_url)
@@ -193,6 +233,11 @@ class LibraryCrawler:
 		return resource_list
 
 	def __get_resource_list_from_page(self, lib_page):
+		'''
+		通过南航图书馆书籍信息页面获取电子资源列表
+		:param lib_page: 南航图书馆书籍信息页面
+		:return: 电子资源列表
+		'''
 		js_para = {'srchtype': 'I',
 		           'wd': None,
 		           'clienttype': 'L',
@@ -230,6 +275,11 @@ class LibraryCrawler:
 		return resource_list
 
 	def __get_resource_list(self, html_page):
+		'''
+		通过南航非书资源管理平台电子资源搜索结果页面获取电子资源列表
+		:param html_page: 南航非书资源管理平台电子资源搜索结果页面
+		:return: 电子资源列表
+		'''
 		resource_list = []
 		results = re.findall(re.compile(r'record\.r=\'(.*?)\';|record\.set\(\'(.*?)\',\'(.*?)\'\);'), html_page)
 		key_list = ['10100001', '15900001', '10400001', '10500001', '331350001']
@@ -328,6 +378,11 @@ class LibraryCrawler:
 		return resource_list
 
 	def search_books(self, key_word):
+		'''
+		通过关键词搜索并返回书籍搜索结果列表
+		:param key_word: 搜索关键词
+		:return: 书籍搜索结果列表
+		'''
 		book_list = []
 		try:
 			search_para = {'strSearchType': 'title',
@@ -363,6 +418,13 @@ class LibraryCrawler:
 			return book_list
 
 	def download_jpg(self, book_info_url, save_path, is_download_resource=False):
+		'''
+		下载书籍并保存为jpg图片
+		:param book_info_url: 南航图书馆书籍信息页面链接
+		:param save_path: 保存文件夹
+		:param is_download_resource: 是否下载该书籍的电子资源
+		:return: 是否下载成功
+		'''
 		html_page = ''
 		if os.path.exists(save_path):
 			if not os.path.isdir(save_path):
@@ -411,6 +473,13 @@ class LibraryCrawler:
 				return False
 
 	def download_pdf(self, book_info_url, save_path, is_download_resource=False):
+		'''
+		下载书籍并保存为pdf文档
+		:param book_info_url: 南航图书馆书籍信息页面链接
+		:param save_path: 保存文件夹
+		:param is_download_resource: 是否下载该书籍的电子资源
+		:return: 是否下载成功
+		'''
 		html_page = ''
 		if os.path.exists(save_path):
 			if not os.path.isdir(save_path):
@@ -463,6 +532,12 @@ class LibraryCrawler:
 				return False
 
 	def jpg_to_pdf(self, jpg_root_dir, save_path):
+		'''
+		将jpg图片书籍转换为pdf文档
+		:param jpg_root_dir: jpg图片书籍根目录
+		:param save_path: 保存文件夹
+		:return: 是否转换成功
+		'''
 		try:
 			if not os.path.isdir(jpg_root_dir):
 				raise Exception('文件夹：%s 不存在！' % jpg_root_dir)
@@ -470,7 +545,7 @@ class LibraryCrawler:
 			pdf_path = os.path.join(save_path, self.__book_name + '.pdf')
 			if os.path.exists(pdf_path):
 				print('文件：%s 已存在，停止下载《%s》！' % (pdf_path, self.__book_name))
-				return
+				return True
 
 			value_path = os.path.join(jpg_root_dir, '正文页/' + self.__book_items['正文页'][0] % 1)
 			if not os.path.isfile(value_path):
@@ -502,6 +577,13 @@ class LibraryCrawler:
 			return False
 
 	def search_books_and_download_jpg(self, key_word, save_path, is_download_resource=False):
+		'''
+		根据关键词搜索书籍并保存为jpg图片
+		:param key_word: 搜索关键词
+		:param save_path: 保存文件夹
+		:param is_download_resource: 是否下载该书籍的电子资源
+		:return: 是否保存成功
+		'''
 		try:
 			search_para = {'strSearchType': 'title',
 			               'match_flag': 'forward',
@@ -559,6 +641,13 @@ class LibraryCrawler:
 			return False
 
 	def search_books_and_download_pdf(self, key_word, save_path, is_download_resource=False):
+		'''
+		根据关键词搜索书籍并保存为pdf文档
+		:param key_word: 搜索关键词
+		:param save_path: 保存文件夹
+		:param is_download_resource: 是否下载该书籍的电子资源
+		:return: 是否保存成功
+		'''
 		try:
 			search_para = {'strSearchType': 'title',
 			               'match_flag': 'forward',
@@ -616,6 +705,11 @@ class LibraryCrawler:
 			return False
 
 	def search_resources(self, key_word):
+		'''
+		通过关键词搜索并返回电子资源搜索结果列表
+		:param key_word: 搜索关键词
+		:return: 电子资源搜索结果列表
+		'''
 		resource_list = []
 		try:
 			search_offset = 0
@@ -663,6 +757,13 @@ class LibraryCrawler:
 			return resource_list
 
 	def download_resource_from(self, resource_url, save_path, resource_name):
+		'''
+		根据电子资源下载链接下载资源到指定路径
+		:param resource_url: 电子资源下载链接
+		:param save_path: 保存文件夹
+		:param resource_name: 电子资源名（不包含后缀）
+		:return: 是否下载成功
+		'''
 		if os.path.exists(save_path):
 			if not os.path.isdir(save_path):
 				raise Exception('保存路径错误！')
@@ -696,6 +797,12 @@ class LibraryCrawler:
 			return False
 
 	def download_resource(self, resource_info_url, save_path):
+		'''
+		根据南航非书资源管理平台电子资源信息页面链接下载资源到指定路径
+		:param resource_info_url: 南航非书资源管理平台电子资源信息页面链接
+		:param save_path: 保存文件夹
+		:return: 是否下载成功
+		'''
 		if os.path.exists(save_path):
 			if not os.path.isdir(save_path):
 				raise Exception('保存路径错误！')
@@ -714,6 +821,12 @@ class LibraryCrawler:
 			return False
 
 	def search_and_download_resources(self, key_word, save_path):
+		'''
+		根据关键词搜索电子资源并下载到指定路径
+		:param key_word: 搜索关键词
+		:param save_path: 保存文件夹
+		:return: 是否下载成功
+		'''
 		try:
 			search_offset = 0
 			search_num = 1000
